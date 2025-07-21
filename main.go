@@ -72,14 +72,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
+	"time"
 )
-
-// "encoding/json"
-// "fmt"
 
 type User struct {
 	UserId   string
 	Username string
+	Email    string
 	Age      int
 }
 
@@ -89,22 +89,27 @@ func GetFakeUsers() []User {
 		{
 			UserId:   "1001",
 			Username: "alice_wonder",
+			Email:    "test@gmail.com",
 			Age:      25,
 		}, {
 			UserId:   "1002",
 			Username: "bob_builder",
+			Email:    "bob_builder@gmail.com",
 			Age:      32,
 		}, {
 			UserId:   "1003",
 			Username: "charlie_fox",
+			Email:    "charlie_fox@gmail.com",
 			Age:      28,
 		}, {
 			UserId:   "1004",
 			Username: "dana_smith",
+			Email:    "dana_smith@gmail.com",
 			Age:      22,
 		}, {
 			UserId:   "1005",
 			Username: "eve_black",
+			Email:    "eve_black@gmail.com",
 			Age:      29,
 		},
 	}
@@ -116,21 +121,19 @@ type Key struct {
 }
 
 func main() {
-	hits := make(map[Key]int)
+	users := GetFakeUsers()
+	fmt.Println("Users data:")
 
-	k := Key{"main.go", "US"}
-	s := Key{"main.go", "US"}
-	hits[k]++
-	hits[s]++
-
-	//get value from key main.g
-	for key, value := range hits {
-		fmt.Println("Key:", key.Path, "Value:", value)
+	var wg sync.WaitGroup
+	for _, user := range users {
+		wg.Add(1) // Increment the WaitGroup counter for each user
+		go func(email, username string) {
+			defer wg.Done()
+			sendEmail(email, fmt.Sprintf("Hello %s, welcome to our service!", username))
+		}(user.Email, user.Username)
 	}
 
-	users := GetFakeUsers()
-
-	jsonData, err := json.MarshalIndent(users, "", "  ")
+	jsonData, err := json.Marshal(users)
 	if err != nil {
 		return
 	} else {
@@ -138,4 +141,12 @@ func main() {
 		fmt.Println("Users data has been successfully marshaled to JSON format.")
 	}
 
+	wg.Wait() // Wait for all goroutines to complete
+}
+
+func sendEmail(email, message string) {
+	time.Sleep(2 * time.Second) // Simulate a delay for sending email
+	// Simulate sending an email
+	fmt.Printf("Sending email to %s with message: %s\n", email, message)
+	// In a real application, you would use an SMTP client or similar to send the email
 }
