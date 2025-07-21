@@ -1,97 +1,141 @@
+//package main
+
+//import (
+//	"fmt"
+//	"time"
+//	"unique"
+//	//"crypto"
+//)
+
+//type Tasks struct {
+//	id          string
+//	title       string
+//	description string
+//	isFinished  bool
+//	createdAt   time.Time
+//	updatedAt   time.Time
+//	deletedAt   time.Time
+//}
+
+//type user struct {
+//	userId string
+//	username string
+//	age int
+//	gender string
+//	password string
+//}
+
+//func main() {
+//	users :=
+
+//	var userId string
+//	var username string
+//	var age int
+//	var gender string
+//	var password string
+//	var ConfirmPassword string
+
+//	var tasks = make([]Tasks, 0)
+//	//append(tasks)
+
+//	fmt.Println("Welcome To Task Manager, We help you to organize your tasks")
+//	fmt.Print("Enter your username: ")
+//	fmt.Scanln(&username)
+
+//	fmt.Printf("Grate, Welcome %v now you can add your tasks for us and we organized for you", username)
+
+//	fmt.Print("Now you need to register your account we ask about some information about you: ")
+
+//	fmt.Print("Enter your age:")
+//	fmt.Scanln(&age)
+
+//	fmt.Print("Enter your gender { male | female }:")
+//	fmt.Scanln(&gender)
+
+//	fmt.Print("Enter your Password:")
+//	fmt.Scanln(&password)
+
+//	fmt.Print("Enter your Confirm Password:")
+//	fmt.Scanln(&ConfirmPassword)
+
+//	if password != ConfirmPassword {
+//		fmt.Println("Your Passwords does not same match make again")
+//		//continue
+//	}
+//	tempId := unique.Make(username)
+//	userId = tempId.Value()
+
+//}
+
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"io"
-	"os"
-	"runtime"
 )
 
+// "encoding/json"
+// "fmt"
+
+type User struct {
+	UserId   string
+	Username string
+	Age      int
+}
+
+func GetFakeUsers() []User {
+
+	users := []User{
+		{
+			UserId:   "1001",
+			Username: "alice_wonder",
+			Age:      25,
+		}, {
+			UserId:   "1002",
+			Username: "bob_builder",
+			Age:      32,
+		}, {
+			UserId:   "1003",
+			Username: "charlie_fox",
+			Age:      28,
+		}, {
+			UserId:   "1004",
+			Username: "dana_smith",
+			Age:      22,
+		}, {
+			UserId:   "1005",
+			Username: "eve_black",
+			Age:      29,
+		},
+	}
+	return users
+}
+
+type Key struct {
+	Path, Country string
+}
+
 func main() {
-	var hello string = "Hello, World!"
-	nameProgram := "Go"
+	hits := make(map[Key]int)
 
-	fmt.Printf("Welcome to the %v program!\n", nameProgram) // This program demonstrates basic variable declaration and function usage in Go.
-	fmt.Printf("Message: %s\n", hello)                      // This line prints the message stored in the variable hello.
-	//fmt.Println(hello)
+	k := Key{"main.go", "US"}
+	s := Key{"main.go", "US"}
+	hits[k]++
+	hits[s]++
 
-	var x uint = 10
-	fmt.Println("Value of x:", x)
-
-	var y int = 10
-	fmt.Println("Value of y:", y)
-
-	fmt.Println("Value of total is:", sum(x, y))
-	defineOS() // Call the function to define the operating system.
-
-	readFile("example.txt") // Call the function to read a file named "example.txt".
-
-	pointer(10)
-
-	fmt.Println("End of the program")
-}
-
-func sum(a uint, b int) uint {
-	return a + uint(b) // The function sum takes a uint and an int, adds them, and returns a uint.
-}
-
-func defineOS() {
-	os := runtime.GOOS // This function retrieves the current operating system.
-	switch os {
-	case "windows":
-		fmt.Println("Running on Windows")
-	case "linux":
-		fmt.Println("Running on Linux")
-	case "darwin":
-		fmt.Println("Running on macOS")
-	default:
-		fmt.Printf("Running on %s\n", os)
+	//get value from key main.g
+	for key, value := range hits {
+		fmt.Println("Key:", key.Path, "Value:", value)
 	}
-	runtime.GC()
-	// This line forces garbage collection, which is not typically necessary in Go but can be used for demonstration purposes.
-}
 
-func readFile(filename string) {
-	f, err := os.Open(filename)
+	users := GetFakeUsers()
 
+	jsonData, err := json.MarshalIndent(users, "", "  ")
 	if err != nil {
-		//log.Fatal(err)
-		fmt.Println(err)
-	}
-	defer f.Close()
-
-	//read all of file
-	t, err := io.ReadAll(f)
-
-	if err != nil {
-		//log.Fatal(err)
-		fmt.Println(err)
-	}
-
-	fmt.Printf("File content: %s\n", string(t)) // This line prints the content of the file.
-	if len(t) == 0 {
-		fmt.Println("File is empty")
+		return
 	} else {
-		fmt.Println("File is not empty")
+		fmt.Println(string(jsonData))
+		fmt.Println("Users data has been successfully marshaled to JSON format.")
 	}
-	fmt.Println("File read successfully")
-}
 
-func pointer(value int) {
-	x := value
-	y := &x // This line creates a pointer to the variable x.
-
-	fmt.Println("Value of x:", x)
-	fmt.Println("Pointer to x:", y) // This line prints the memory address of x.
-
-	x += 10
-	*y += 10
-	fmt.Println(x, *y) // this print value x and value pointer, and because we work with reference address must both return same value and +20
-
-	var username string
-	fmt.Scan(username) // this just print empty because it is empty
-	fmt.Print("Put username: ")
-	fmt.Scanln(&username) // but this let u input value to reference memory of username or pointer
-
-	fmt.Printf("Welcome Again %v\n", username)
 }

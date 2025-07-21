@@ -1,0 +1,25 @@
+first version
+
+unique id
+username 
+password
+age
+gender
+token
+
+
+tasks [id,title, description, isFinished,createdAt,updatedAt, deletedAt ]: []
+
+actions: finish, unfinish ,read list, read one, create, update, soft delete, delete : [] 
+
+middleware : 
+            isLogedin(auth) : [] 
+            no one can actions to other person tasks(authorization) : []
+
+============================================
+
+second version
+
+- add RBAC []
+- add organization
+
