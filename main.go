@@ -1,13 +1,21 @@
 package main
 
 import (
+	//i have a package name user
+
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/omed0/go-hello-world/internal/api"
+	"github.com/omed0/go-hello-world/user"
+	"github.com/omed0/go-hello-world/utils"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -15,7 +23,7 @@ func main() {
 
 	PORT := os.Getenv("PORT")
 	if PORT == "" {
-		log.Fatal("You must setup PORT Enviroment on .env file")
+		log.Fatal("You must setup PORT Env on .env file")
 	}
 
 	router := chi.NewRouter()
@@ -29,9 +37,17 @@ func main() {
 		MaxAge:           300,
 	}))
 
+	db, er := api.GetDB()
+	if er != nil {
+		log.Fatalf("Failed to connect to the database: %v", er)
+	}
+	defer db.Close()
+
 	v1Router := chi.NewRouter()
-	v1Router.Get("/healthz", handlerReadiness)
-	v1Router.Get("/err", handlerErr)
+	v1Router.Get("/healthz", utils.HandlerReadiness)
+	v1Router.Get("/err", utils.HandlerErr)
+	v1Router.Post("/user", user.HandlerCreateUser)
+	v1Router.Get("/user", user.HandlerGetUser)
 
 	router.Mount("/v1", v1Router)
 
