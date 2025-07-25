@@ -7,33 +7,25 @@ package database
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, username, created_at, updated_at, api_key) 
-VALUES ($1, $2, $3, $4,
+INSERT INTO users (id, username, api_key) 
+VALUES ($1, $2, 
     encode(sha256(random()::text::bytea), 'hex')
 )
 RETURNING id, username, created_at, updated_at, api_key
 `
 
 type CreateUserParams struct {
-	ID        uuid.UUID
-	Username  string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID       uuid.UUID
+	Username string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, createUser,
-		arg.ID,
-		arg.Username,
-		arg.CreatedAt,
-		arg.UpdatedAt,
-	)
+	row := q.db.QueryRowContext(ctx, createUser, arg.ID, arg.Username)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -43,6 +35,57 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.ApiKey,
 	)
 	return i, err
+}
+
+const deleteUser = `-- name: DeleteUser :one
+DELETE FROM users WHERE id = $1
+RETURNING id, username, created_at, updated_at, api_key
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRowContext(ctx, deleteUser, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ApiKey,
+	)
+	return i, err
+}
+
+const getAllUsers = `-- name: GetAllUsers :many
+SELECT id, username, created_at, updated_at, api_key FROM users
+`
+
+func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getAllUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ApiKey,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUserByAPIKey = `-- name: GetUserByAPIKey :one
@@ -85,6 +128,31 @@ SELECT id, username, created_at, updated_at, api_key FROM users WHERE username =
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
 	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ApiKey,
+	)
+	return i, err
+}
+
+const updateUser = `-- name: UpdateUser :one
+UPDATE users
+SET username = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING id, username, created_at, updated_at, api_key
+`
+
+type UpdateUserParams struct {
+	ID       uuid.UUID
+	Username string
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUser, arg.ID, arg.Username)
 	var i User
 	err := row.Scan(
 		&i.ID,

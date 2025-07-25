@@ -7,13 +7,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/omed0/go-hello-world/internal/api"
-	"github.com/omed0/go-hello-world/user"
-	"github.com/omed0/go-hello-world/utils"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+	"github.com/omed0/go-hello-world/handlers"
 
 	_ "github.com/lib/pq"
 )
@@ -37,17 +34,18 @@ func main() {
 		MaxAge:           300,
 	}))
 
-	db, er := api.GetDB()
+	apiCfg := &handlers.ApiConfig{}
+	db, er := apiCfg.GetDB()
 	if er != nil {
 		log.Fatalf("Failed to connect to the database: %v", er)
 	}
 	defer db.Close()
 
 	v1Router := chi.NewRouter()
-	v1Router.Get("/healthz", utils.HandlerReadiness)
-	v1Router.Get("/err", utils.HandlerErr)
-	v1Router.Post("/user", user.HandlerCreateUser)
-	v1Router.Get("/user", user.HandlerGetUser)
+	v1Router.Get("/healthz", handlers.HandlerReadiness)
+	v1Router.Get("/err", handlers.HandlerErr)
+	v1Router.Post("/user", apiCfg.HandlerCreateUser)
+	v1Router.Get("/user", apiCfg.HandlerGetUser)
 
 	router.Mount("/v1", v1Router)
 
