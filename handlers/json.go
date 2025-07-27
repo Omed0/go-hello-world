@@ -6,10 +6,12 @@ import (
 	"net/http"
 )
 
+// ErrorResponse represents an error response
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+// RespondWithJSON sends a JSON response with the specified status code and payload
 func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -26,9 +28,13 @@ func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	}
 }
 
+// RespondWithError sends an error response in JSON format
 func RespondWithError(w http.ResponseWriter, code int, msg string) {
 	if code >= 500 {
 		log.Printf("Server error: %s", msg)
+	} else if code >= 400 {
+		log.Printf("Client error: %s", msg)
 	}
+
 	RespondWithJSON(w, code, ErrorResponse{Error: msg})
 }
