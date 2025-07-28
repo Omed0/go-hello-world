@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"net/http"
+	"regexp"
+	"strings"
 )
 
 // HealthResponse represents the health check response
@@ -32,4 +34,25 @@ func HandlerReadiness(w http.ResponseWriter, r *http.Request) {
 // This endpoint is useful for testing error handling and logging
 func HandlerErr(w http.ResponseWriter, r *http.Request) {
 	RespondWithError(w, http.StatusInternalServerError, "This is a test error endpoint")
+}
+
+// validateUsername validates username format and requirements
+func validateUsername(username string) (bool, string) {
+	username = strings.TrimSpace(username)
+
+	if len(username) < 3 {
+		return false, "Username must be at least 3 characters long"
+	}
+
+	if len(username) > 50 {
+		return false, "Username must be less than 50 characters"
+	}
+
+	// Allow alphanumeric characters, underscores, and hyphens
+	matched, _ := regexp.MatchString("^[a-zA-Z0-9_-]+$", username)
+	if !matched {
+		return false, "Username can only contain letters, numbers, underscores, and hyphens"
+	}
+
+	return true, ""
 }

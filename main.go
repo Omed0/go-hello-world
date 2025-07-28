@@ -63,6 +63,7 @@ func main() {
 	v1Router.Get("/healthz", handlers.HandlerReadiness)
 	v1Router.Get("/err", handlers.HandlerErr)
 	v1Router.Post("/user", apiCfg.HandlerCreateUser)
+	v1Router.Post("/login", apiCfg.HandlerLogin)
 
 	// Protected endpoints (authentication required)
 	v1Router.Group(func(r chi.Router) {
@@ -70,6 +71,14 @@ func main() {
 
 		// User endpoints
 		r.Get("/user", apiCfg.HandlerGetUser)
+		r.Put("/user", apiCfg.HandlerUpdateUser)
+
+		// Organization endpoints
+		r.Post("/organizations", apiCfg.HandlerCreateOrganization)
+		r.Get("/organizations/{orgId}", apiCfg.HandlerGetOrganization)
+		r.With(middleware.RequireRole(apiCfg, "admin", "owner")).Put("/organizations/{orgId}", apiCfg.HandlerUpdateOrganization)
+		r.With(middleware.RequireRole(apiCfg, "owner")).Delete("/organizations/{orgId}", apiCfg.HandlerDeleteOrganization)
+		r.Get("/organizations/{orgId}/users", apiCfg.HandlerGetOrganizationUsers)
 
 		// Task endpoints
 		r.Post("/tasks", apiCfg.HandlerCreateTask)

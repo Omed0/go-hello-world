@@ -22,4 +22,5 @@ second version
 
 - add RBAC []
 - add organization
-
+- with this cli tool https://charm.sh/ make a nice beautiful for my application
+- check everything and test for all things, and clean it, and in file README.md have all thing and how work about my project

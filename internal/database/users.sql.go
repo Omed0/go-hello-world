@@ -7,25 +7,40 @@ package database
 
 import (
 	"context"
+	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, username, api_key) 
-VALUES ($1, $2, 
+INSERT INTO users (id, username, password_hash, age, gender, role, organization_id, api_key) 
+VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'user'), COALESCE($7, '00000000-0000-0000-0000-000000000000'),
     encode(sha256(random()::text::bytea), 'hex')
 )
-RETURNING id, username, created_at, updated_at, api_key
+RETURNING id, username, created_at, updated_at, api_key, password_hash, age, gender, role, organization_id
 `
 
 type CreateUserParams struct {
-	ID       uuid.UUID
-	Username string
+	ID           uuid.UUID
+	Username     string
+	PasswordHash string
+	Age          sql.NullInt32
+	Gender       sql.NullString
+	Column6      interface{}
+	Column7      interface{}
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, createUser, arg.ID, arg.Username)
+	row := q.db.QueryRowContext(ctx, createUser,
+		arg.ID,
+		arg.Username,
+		arg.PasswordHash,
+		arg.Age,
+		arg.Gender,
+		arg.Column6,
+		arg.Column7,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -33,13 +48,62 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ApiKey,
+		&i.PasswordHash,
+		&i.Age,
+		&i.Gender,
+		&i.Role,
+		&i.OrganizationID,
+	)
+	return i, err
+}
+
+const createUserWithPassword = `-- name: CreateUserWithPassword :one
+INSERT INTO users (id, username, password_hash, age, gender, role, organization_id, api_key) 
+VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'user'), COALESCE($7, '00000000-0000-0000-0000-000000000000'),
+    encode(sha256(random()::text::bytea), 'hex')
+)
+RETURNING id, username, created_at, updated_at, api_key, password_hash, age, gender, role, organization_id
+`
+
+type CreateUserWithPasswordParams struct {
+	ID           uuid.UUID
+	Username     string
+	PasswordHash string
+	Age          sql.NullInt32
+	Gender       sql.NullString
+	Column6      interface{}
+	Column7      interface{}
+}
+
+func (q *Queries) CreateUserWithPassword(ctx context.Context, arg CreateUserWithPasswordParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUserWithPassword,
+		arg.ID,
+		arg.Username,
+		arg.PasswordHash,
+		arg.Age,
+		arg.Gender,
+		arg.Column6,
+		arg.Column7,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ApiKey,
+		&i.PasswordHash,
+		&i.Age,
+		&i.Gender,
+		&i.Role,
+		&i.OrganizationID,
 	)
 	return i, err
 }
 
 const deleteUser = `-- name: DeleteUser :one
 DELETE FROM users WHERE id = $1
-RETURNING id, username, created_at, updated_at, api_key
+RETURNING id, username, created_at, updated_at, api_key, password_hash, age, gender, role, organization_id
 `
 
 func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -51,29 +115,56 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ApiKey,
+		&i.PasswordHash,
+		&i.Age,
+		&i.Gender,
+		&i.Role,
+		&i.OrganizationID,
 	)
 	return i, err
 }
 
 const getAllUsers = `-- name: GetAllUsers :many
-SELECT id, username, created_at, updated_at, api_key FROM users
+SELECT u.id, u.username, u.created_at, u.updated_at, u.api_key, u.password_hash, u.age, u.gender, u.role, u.organization_id, o.name as organization_name 
+FROM users u 
+LEFT JOIN organizations o ON u.organization_id = o.id
 `
 
-func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
+type GetAllUsersRow struct {
+	ID               uuid.UUID
+	Username         string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	ApiKey           string
+	PasswordHash     string
+	Age              sql.NullInt32
+	Gender           sql.NullString
+	Role             string
+	OrganizationID   uuid.NullUUID
+	OrganizationName sql.NullString
+}
+
+func (q *Queries) GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error) {
 	rows, err := q.db.QueryContext(ctx, getAllUsers)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []User
+	var items []GetAllUsersRow
 	for rows.Next() {
-		var i User
+		var i GetAllUsersRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Username,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ApiKey,
+			&i.PasswordHash,
+			&i.Age,
+			&i.Gender,
+			&i.Role,
+			&i.OrganizationID,
+			&i.OrganizationName,
 		); err != nil {
 			return nil, err
 		}
@@ -89,70 +180,250 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 }
 
 const getUserByAPIKey = `-- name: GetUserByAPIKey :one
-SELECT id, username, created_at, updated_at, api_key FROM users WHERE api_key = $1
+SELECT u.id, u.username, u.created_at, u.updated_at, u.api_key, u.password_hash, u.age, u.gender, u.role, u.organization_id, o.name as organization_name 
+FROM users u 
+LEFT JOIN organizations o ON u.organization_id = o.id 
+WHERE u.api_key = $1
 `
 
-func (q *Queries) GetUserByAPIKey(ctx context.Context, apiKey string) (User, error) {
+type GetUserByAPIKeyRow struct {
+	ID               uuid.UUID
+	Username         string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	ApiKey           string
+	PasswordHash     string
+	Age              sql.NullInt32
+	Gender           sql.NullString
+	Role             string
+	OrganizationID   uuid.NullUUID
+	OrganizationName sql.NullString
+}
+
+func (q *Queries) GetUserByAPIKey(ctx context.Context, apiKey string) (GetUserByAPIKeyRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserByAPIKey, apiKey)
-	var i User
+	var i GetUserByAPIKeyRow
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ApiKey,
+		&i.PasswordHash,
+		&i.Age,
+		&i.Gender,
+		&i.Role,
+		&i.OrganizationID,
+		&i.OrganizationName,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, created_at, updated_at, api_key FROM users WHERE id = $1
+SELECT u.id, u.username, u.created_at, u.updated_at, u.api_key, u.password_hash, u.age, u.gender, u.role, u.organization_id, o.name as organization_name 
+FROM users u 
+LEFT JOIN organizations o ON u.organization_id = o.id 
+WHERE u.id = $1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
+type GetUserByIDRow struct {
+	ID               uuid.UUID
+	Username         string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	ApiKey           string
+	PasswordHash     string
+	Age              sql.NullInt32
+	Gender           sql.NullString
+	Role             string
+	OrganizationID   uuid.NullUUID
+	OrganizationName sql.NullString
+}
+
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserByID, id)
-	var i User
+	var i GetUserByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ApiKey,
+		&i.PasswordHash,
+		&i.Age,
+		&i.Gender,
+		&i.Role,
+		&i.OrganizationID,
+		&i.OrganizationName,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, created_at, updated_at, api_key FROM users WHERE username = $1
+SELECT u.id, u.username, u.created_at, u.updated_at, u.api_key, u.password_hash, u.age, u.gender, u.role, u.organization_id, o.name as organization_name 
+FROM users u 
+LEFT JOIN organizations o ON u.organization_id = o.id 
+WHERE u.username = $1
 `
 
-func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
+type GetUserByUsernameRow struct {
+	ID               uuid.UUID
+	Username         string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	ApiKey           string
+	PasswordHash     string
+	Age              sql.NullInt32
+	Gender           sql.NullString
+	Role             string
+	OrganizationID   uuid.NullUUID
+	OrganizationName sql.NullString
+}
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
-	var i User
+	var i GetUserByUsernameRow
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ApiKey,
+		&i.PasswordHash,
+		&i.Age,
+		&i.Gender,
+		&i.Role,
+		&i.OrganizationID,
+		&i.OrganizationName,
 	)
 	return i, err
 }
 
+const getUserByUsernameAndPassword = `-- name: GetUserByUsernameAndPassword :one
+SELECT u.id, u.username, u.created_at, u.updated_at, u.api_key, u.password_hash, u.age, u.gender, u.role, u.organization_id, o.name as organization_name 
+FROM users u 
+LEFT JOIN organizations o ON u.organization_id = o.id 
+WHERE u.username = $1 AND u.password_hash = $2
+`
+
+type GetUserByUsernameAndPasswordParams struct {
+	Username     string
+	PasswordHash string
+}
+
+type GetUserByUsernameAndPasswordRow struct {
+	ID               uuid.UUID
+	Username         string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	ApiKey           string
+	PasswordHash     string
+	Age              sql.NullInt32
+	Gender           sql.NullString
+	Role             string
+	OrganizationID   uuid.NullUUID
+	OrganizationName sql.NullString
+}
+
+func (q *Queries) GetUserByUsernameAndPassword(ctx context.Context, arg GetUserByUsernameAndPasswordParams) (GetUserByUsernameAndPasswordRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByUsernameAndPassword, arg.Username, arg.PasswordHash)
+	var i GetUserByUsernameAndPasswordRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ApiKey,
+		&i.PasswordHash,
+		&i.Age,
+		&i.Gender,
+		&i.Role,
+		&i.OrganizationID,
+		&i.OrganizationName,
+	)
+	return i, err
+}
+
+const getUsersByOrganization = `-- name: GetUsersByOrganization :many
+SELECT u.id, u.username, u.created_at, u.updated_at, u.api_key, u.password_hash, u.age, u.gender, u.role, u.organization_id, o.name as organization_name 
+FROM users u 
+LEFT JOIN organizations o ON u.organization_id = o.id 
+WHERE u.organization_id = $1
+`
+
+type GetUsersByOrganizationRow struct {
+	ID               uuid.UUID
+	Username         string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	ApiKey           string
+	PasswordHash     string
+	Age              sql.NullInt32
+	Gender           sql.NullString
+	Role             string
+	OrganizationID   uuid.NullUUID
+	OrganizationName sql.NullString
+}
+
+func (q *Queries) GetUsersByOrganization(ctx context.Context, organizationID uuid.NullUUID) ([]GetUsersByOrganizationRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUsersByOrganization, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUsersByOrganizationRow
+	for rows.Next() {
+		var i GetUsersByOrganizationRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ApiKey,
+			&i.PasswordHash,
+			&i.Age,
+			&i.Gender,
+			&i.Role,
+			&i.OrganizationID,
+			&i.OrganizationName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
-SET username = $2, updated_at = NOW()
+SET username = COALESCE($2, username), 
+    age = COALESCE($3, age),
+    gender = COALESCE($4, gender),
+    updated_at = NOW()
 WHERE id = $1
-RETURNING id, username, created_at, updated_at, api_key
+RETURNING id, username, created_at, updated_at, api_key, password_hash, age, gender, role, organization_id
 `
 
 type UpdateUserParams struct {
 	ID       uuid.UUID
 	Username string
+	Age      sql.NullInt32
+	Gender   sql.NullString
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, updateUser, arg.ID, arg.Username)
+	row := q.db.QueryRowContext(ctx, updateUser,
+		arg.ID,
+		arg.Username,
+		arg.Age,
+		arg.Gender,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -160,6 +431,101 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ApiKey,
+		&i.PasswordHash,
+		&i.Age,
+		&i.Gender,
+		&i.Role,
+		&i.OrganizationID,
+	)
+	return i, err
+}
+
+const updateUserOrganization = `-- name: UpdateUserOrganization :one
+UPDATE users
+SET organization_id = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING id, username, created_at, updated_at, api_key, password_hash, age, gender, role, organization_id
+`
+
+type UpdateUserOrganizationParams struct {
+	ID             uuid.UUID
+	OrganizationID uuid.NullUUID
+}
+
+func (q *Queries) UpdateUserOrganization(ctx context.Context, arg UpdateUserOrganizationParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserOrganization, arg.ID, arg.OrganizationID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ApiKey,
+		&i.PasswordHash,
+		&i.Age,
+		&i.Gender,
+		&i.Role,
+		&i.OrganizationID,
+	)
+	return i, err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :one
+UPDATE users
+SET password_hash = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING id, username, created_at, updated_at, api_key, password_hash, age, gender, role, organization_id
+`
+
+type UpdateUserPasswordParams struct {
+	ID           uuid.UUID
+	PasswordHash string
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ApiKey,
+		&i.PasswordHash,
+		&i.Age,
+		&i.Gender,
+		&i.Role,
+		&i.OrganizationID,
+	)
+	return i, err
+}
+
+const updateUserRole = `-- name: UpdateUserRole :one
+UPDATE users
+SET role = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING id, username, created_at, updated_at, api_key, password_hash, age, gender, role, organization_id
+`
+
+type UpdateUserRoleParams struct {
+	ID   uuid.UUID
+	Role string
+}
+
+func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserRole, arg.ID, arg.Role)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ApiKey,
+		&i.PasswordHash,
+		&i.Age,
+		&i.Gender,
+		&i.Role,
+		&i.OrganizationID,
 	)
 	return i, err
 }

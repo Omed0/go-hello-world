@@ -9,7 +9,18 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
+
+type Organization struct {
+	ID          uuid.UUID
+	Name        string
+	Description sql.NullString
+	Settings    pqtype.NullRawMessage
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   sql.NullTime
+}
 
 type Task struct {
 	ID          uuid.UUID
@@ -23,9 +34,14 @@ type Task struct {
 }
 
 type User struct {
-	ID        uuid.UUID
-	Username  string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	ApiKey    string
+	ID             uuid.UUID
+	Username       string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	ApiKey         string
+	PasswordHash   string
+	Age            sql.NullInt32
+	Gender         sql.NullString
+	Role           string
+	OrganizationID uuid.NullUUID
 }
