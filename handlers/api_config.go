@@ -6,8 +6,7 @@ import (
 	"log"
 	"os"
 	"sync"
-
-	//"time"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/omed0/go-hello-world/internal/database"
@@ -65,10 +64,10 @@ func initializeDB() error {
 		return err
 	}
 
-	// Configure connection pool
-	//dbConn.SetMaxOpenConns(25)
-	//dbConn.SetMaxIdleConns(25)
-	//dbConn.SetConnMaxLifetime(5 * time.Minute)
+	// Configure connection pool for optimal performance
+	dbConn.SetMaxOpenConns(25)                 // Maximum number of open connections
+	dbConn.SetMaxIdleConns(25)                 // Maximum number of idle connections
+	dbConn.SetConnMaxLifetime(5 * time.Minute) // Maximum lifetime of a connection
 
 	// Ping DB to verify connection
 	if err := dbConn.Ping(); err != nil {
@@ -77,7 +76,7 @@ func initializeDB() error {
 		return err
 	}
 
-	log.Println("Database connected")
+	log.Println("Database connected successfully")
 	return nil
 }
 

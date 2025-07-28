@@ -48,13 +48,15 @@ func (api *ApiConfig) HandlerCreateUser(w http.ResponseWriter, r *http.Request) 
 }
 
 func (api *ApiConfig) HandlerGetUser(w http.ResponseWriter, r *http.Request) {
-	apiKey, err := auth.GetAPIKey(r.Header)
+	// Get user ID from context (set by auth middleware)
+	userID, err := auth.GetUserIDFromContext(r.Context())
 	if err != nil {
-		RespondWithError(w, http.StatusUnauthorized, err.Error())
+		RespondWithError(w, http.StatusInternalServerError, "User not found in context")
 		return
 	}
 
-	user, err := api.Queries.GetUserByAPIKey(r.Context(), apiKey)
+	// Get user by ID instead of API key since we already have it from middleware
+	user, err := api.Queries.GetUserByID(r.Context(), userID)
 	if err != nil {
 		RespondWithError(w, http.StatusInternalServerError, "Failed to get user: "+err.Error())
 		return

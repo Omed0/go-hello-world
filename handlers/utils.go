@@ -1,33 +1,35 @@
 package handlers
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 )
 
 // HealthResponse represents the health check response
 type HealthResponse struct {
-	Status string `json:"status"`
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
 }
 
 // HandlerReadiness handles health check requests
+// This endpoint can be used by load balancers and monitoring systems
 func HandlerReadiness(w http.ResponseWriter, r *http.Request) {
-	RespondWithJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
+	// Check database connection
+	if !IsDBConnected() {
+		RespondWithJSON(w, http.StatusServiceUnavailable, HealthResponse{
+			Status:  "unhealthy",
+			Message: "Database connection is not available",
+		})
+		return
+	}
+
+	RespondWithJSON(w, http.StatusOK, HealthResponse{
+		Status:  "healthy",
+		Message: "Service is running properly",
+	})
 }
 
 // HandlerErr handles error testing requests
+// This endpoint is useful for testing error handling and logging
 func HandlerErr(w http.ResponseWriter, r *http.Request) {
-	RespondWithError(w, http.StatusBadRequest, "Something went wrong")
-}
-
-// HandleRequestError is a helper function to handle errors consistently
-// Deprecated: Use direct error handling in handlers for better clarity
-func HandleRequestError(w http.ResponseWriter, err error, msg string, code int) bool {
-	if err != nil {
-		log.Printf("Request error: %s - %v", msg, err)
-		RespondWithError(w, code, fmt.Sprintf("%s: %v", msg, err))
-		return true
-	}
-	return false
+	RespondWithError(w, http.StatusInternalServerError, "This is a test error endpoint")
 }

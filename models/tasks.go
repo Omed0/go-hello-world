@@ -9,24 +9,29 @@ import (
 
 // Task represents a task in the system
 type Task struct {
-	ID        uuid.UUID  `json:"id"`
-	Title     string     `json:"title"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty"`
-	UserID    uuid.UUID  `json:"user_id"`
+	ID          uuid.UUID  `json:"id"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	IsCompleted bool       `json:"is_completed"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
+	UserID      uuid.UUID  `json:"user_id"`
 }
 
 // DatabaseTaskToTask converts a database task to a task model
 func DatabaseTaskToTask(dbTask database.Task) Task {
 	task := Task{
-		ID:        dbTask.ID,
-		Title:     dbTask.Title,
-		CreatedAt: dbTask.CreatedAt,
-		UpdatedAt: dbTask.UpdatedAt,
-		UserID:    dbTask.UserID,
+		ID:          dbTask.ID,
+		Title:       dbTask.Title,
+		Description: dbTask.Description,
+		IsCompleted: dbTask.IsCompleted,
+		CreatedAt:   dbTask.CreatedAt,
+		UpdatedAt:   dbTask.UpdatedAt,
+		UserID:      dbTask.UserID,
 	}
 
+	// Handle nullable deleted_at field
 	if dbTask.DeletedAt.Valid {
 		task.DeletedAt = &dbTask.DeletedAt.Time
 	}

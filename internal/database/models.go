@@ -12,12 +12,14 @@ import (
 )
 
 type Task struct {
-	ID        uuid.UUID
-	Title     string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt sql.NullTime
-	UserID    uuid.UUID
+	ID          uuid.UUID
+	Title       string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   sql.NullTime
+	UserID      uuid.UUID
+	Description string
+	IsCompleted bool
 }
 
 type User struct {

@@ -12,20 +12,15 @@ import (
 	"github.com/google/uuid"
 )
 
-const createTask = `-- name: CreateTask :one
-INSERT INTO tasks (id, title, user_id) 
-VALUES ($1, $2, $3)
-RETURNING id, title, created_at, updated_at, deleted_at, user_id
+const completeTask = `-- name: CompleteTask :one
+UPDATE tasks
+SET is_completed = TRUE, updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, title, created_at, updated_at, deleted_at, user_id, description, is_completed
 `
 
-type CreateTaskParams struct {
-	ID     uuid.UUID
-	Title  string
-	UserID uuid.UUID
-}
-
-func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error) {
-	row := q.db.QueryRowContext(ctx, createTask, arg.ID, arg.Title, arg.UserID)
+func (q *Queries) CompleteTask(ctx context.Context, id uuid.UUID) (Task, error) {
+	row := q.db.QueryRowContext(ctx, completeTask, id)
 	var i Task
 	err := row.Scan(
 		&i.ID,
@@ -34,12 +29,48 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.UserID,
+		&i.Description,
+		&i.IsCompleted,
+	)
+	return i, err
+}
+
+const createTask = `-- name: CreateTask :one
+INSERT INTO tasks (id, title, description, user_id) 
+VALUES ($1, $2, $3, $4)
+RETURNING id, title, created_at, updated_at, deleted_at, user_id, description, is_completed
+`
+
+type CreateTaskParams struct {
+	ID          uuid.UUID
+	Title       string
+	Description string
+	UserID      uuid.UUID
+}
+
+func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error) {
+	row := q.db.QueryRowContext(ctx, createTask,
+		arg.ID,
+		arg.Title,
+		arg.Description,
+		arg.UserID,
+	)
+	var i Task
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.UserID,
+		&i.Description,
+		&i.IsCompleted,
 	)
 	return i, err
 }
 
 const getAllTasks = `-- name: GetAllTasks :many
-SELECT id, title, created_at, updated_at, deleted_at, user_id FROM tasks WHERE deleted_at IS NULL ORDER BY created_at DESC
+SELECT id, title, created_at, updated_at, deleted_at, user_id, description, is_completed FROM tasks WHERE deleted_at IS NULL ORDER BY created_at DESC
 `
 
 func (q *Queries) GetAllTasks(ctx context.Context) ([]Task, error) {
@@ -58,6 +89,8 @@ func (q *Queries) GetAllTasks(ctx context.Context) ([]Task, error) {
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.UserID,
+			&i.Description,
+			&i.IsCompleted,
 		); err != nil {
 			return nil, err
 		}
@@ -73,7 +106,7 @@ func (q *Queries) GetAllTasks(ctx context.Context) ([]Task, error) {
 }
 
 const getDeletedTasksByUserId = `-- name: GetDeletedTasksByUserId :many
-SELECT id, title, created_at, updated_at, deleted_at, user_id FROM tasks WHERE user_id = $1 AND deleted_at IS NOT NULL ORDER BY updated_at DESC
+SELECT id, title, created_at, updated_at, deleted_at, user_id, description, is_completed FROM tasks WHERE user_id = $1 AND deleted_at IS NOT NULL ORDER BY updated_at DESC
 `
 
 func (q *Queries) GetDeletedTasksByUserId(ctx context.Context, userID uuid.UUID) ([]Task, error) {
@@ -92,6 +125,8 @@ func (q *Queries) GetDeletedTasksByUserId(ctx context.Context, userID uuid.UUID)
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.UserID,
+			&i.Description,
+			&i.IsCompleted,
 		); err != nil {
 			return nil, err
 		}
@@ -107,7 +142,7 @@ func (q *Queries) GetDeletedTasksByUserId(ctx context.Context, userID uuid.UUID)
 }
 
 const getTaskById = `-- name: GetTaskById :one
-SELECT id, title, created_at, updated_at, deleted_at, user_id FROM tasks WHERE id = $1 AND deleted_at IS NULL
+SELECT id, title, created_at, updated_at, deleted_at, user_id, description, is_completed FROM tasks WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetTaskById(ctx context.Context, id uuid.UUID) (Task, error) {
@@ -120,12 +155,14 @@ func (q *Queries) GetTaskById(ctx context.Context, id uuid.UUID) (Task, error) {
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.UserID,
+		&i.Description,
+		&i.IsCompleted,
 	)
 	return i, err
 }
 
 const getTasksByUserId = `-- name: GetTasksByUserId :many
-SELECT id, title, created_at, updated_at, deleted_at, user_id FROM tasks WHERE user_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC
+SELECT id, title, created_at, updated_at, deleted_at, user_id, description, is_completed FROM tasks WHERE user_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC
 `
 
 func (q *Queries) GetTasksByUserId(ctx context.Context, userID uuid.UUID) ([]Task, error) {
@@ -144,6 +181,8 @@ func (q *Queries) GetTasksByUserId(ctx context.Context, userID uuid.UUID) ([]Tas
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.UserID,
+			&i.Description,
+			&i.IsCompleted,
 		); err != nil {
 			return nil, err
 		}
@@ -159,7 +198,7 @@ func (q *Queries) GetTasksByUserId(ctx context.Context, userID uuid.UUID) ([]Tas
 }
 
 const handleSearchTasks = `-- name: HandleSearchTasks :many
-SELECT id, title, created_at, updated_at, deleted_at, user_id FROM tasks
+SELECT id, title, created_at, updated_at, deleted_at, user_id, description, is_completed FROM tasks
 WHERE (title ILIKE '%' || $1 || '%')
 AND ($2::int IS NULL OR user_id = $2)
 AND deleted_at IS NULL
@@ -196,6 +235,8 @@ func (q *Queries) HandleSearchTasks(ctx context.Context, arg HandleSearchTasksPa
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.UserID,
+			&i.Description,
+			&i.IsCompleted,
 		); err != nil {
 			return nil, err
 		}
@@ -213,7 +254,7 @@ func (q *Queries) HandleSearchTasks(ctx context.Context, arg HandleSearchTasksPa
 const hardDeleteTask = `-- name: HardDeleteTask :one
 DELETE FROM tasks
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, title, created_at, updated_at, deleted_at, user_id
+RETURNING id, title, created_at, updated_at, deleted_at, user_id, description, is_completed
 `
 
 func (q *Queries) HardDeleteTask(ctx context.Context, id uuid.UUID) (Task, error) {
@@ -226,6 +267,8 @@ func (q *Queries) HardDeleteTask(ctx context.Context, id uuid.UUID) (Task, error
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.UserID,
+		&i.Description,
+		&i.IsCompleted,
 	)
 	return i, err
 }
@@ -234,7 +277,7 @@ const restoreTask = `-- name: RestoreTask :one
 UPDATE tasks
 SET deleted_at = NULL, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NOT NULL
-RETURNING id, title, created_at, updated_at, deleted_at, user_id
+RETURNING id, title, created_at, updated_at, deleted_at, user_id, description, is_completed
 `
 
 func (q *Queries) RestoreTask(ctx context.Context, id uuid.UUID) (Task, error) {
@@ -247,6 +290,8 @@ func (q *Queries) RestoreTask(ctx context.Context, id uuid.UUID) (Task, error) {
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.UserID,
+		&i.Description,
+		&i.IsCompleted,
 	)
 	return i, err
 }
@@ -255,7 +300,7 @@ const softDeleteTask = `-- name: SoftDeleteTask :one
 UPDATE tasks
 SET deleted_at = NOW(), updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, title, created_at, updated_at, deleted_at, user_id
+RETURNING id, title, created_at, updated_at, deleted_at, user_id, description, is_completed
 `
 
 func (q *Queries) SoftDeleteTask(ctx context.Context, id uuid.UUID) (Task, error) {
@@ -268,25 +313,21 @@ func (q *Queries) SoftDeleteTask(ctx context.Context, id uuid.UUID) (Task, error
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.UserID,
+		&i.Description,
+		&i.IsCompleted,
 	)
 	return i, err
 }
 
-const updateTask = `-- name: UpdateTask :one
+const undoCompleteTask = `-- name: UndoCompleteTask :one
 UPDATE tasks
-SET title = $2, user_id = $3, updated_at = NOW()
+SET is_completed = FALSE, updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, title, created_at, updated_at, deleted_at, user_id
+RETURNING id, title, created_at, updated_at, deleted_at, user_id, description, is_completed
 `
 
-type UpdateTaskParams struct {
-	ID     uuid.UUID
-	Title  string
-	UserID uuid.UUID
-}
-
-func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, error) {
-	row := q.db.QueryRowContext(ctx, updateTask, arg.ID, arg.Title, arg.UserID)
+func (q *Queries) UndoCompleteTask(ctx context.Context, id uuid.UUID) (Task, error) {
+	row := q.db.QueryRowContext(ctx, undoCompleteTask, id)
 	var i Task
 	err := row.Scan(
 		&i.ID,
@@ -295,6 +336,40 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, e
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.UserID,
+		&i.Description,
+		&i.IsCompleted,
+	)
+	return i, err
+}
+
+const updateTaskPartial = `-- name: UpdateTaskPartial :one
+UPDATE tasks
+SET
+  title = COALESCE(NULLIF($1, ''), title),
+  description = COALESCE(NULLIF($2, ''), description),
+  updated_at = NOW()
+WHERE id = $3 AND deleted_at IS NULL
+RETURNING id, title, created_at, updated_at, deleted_at, user_id, description, is_completed
+`
+
+type UpdateTaskPartialParams struct {
+	Column1 interface{}
+	Column2 interface{}
+	ID      uuid.UUID
+}
+
+func (q *Queries) UpdateTaskPartial(ctx context.Context, arg UpdateTaskPartialParams) (Task, error) {
+	row := q.db.QueryRowContext(ctx, updateTaskPartial, arg.Column1, arg.Column2, arg.ID)
+	var i Task
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.UserID,
+		&i.Description,
+		&i.IsCompleted,
 	)
 	return i, err
 }
