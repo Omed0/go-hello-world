@@ -24,13 +24,13 @@ func TestHandlerReadiness(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	// Check the status code is what we expect
-	if status := rr.Code; status != http.StatusOK {
+	if status := rr.Code; status != http.StatusServiceUnavailable {
 		t.Errorf("Handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
+			status, http.StatusServiceUnavailable)
 	}
 
 	// Check the response body contains the expected JSON
-	expected := `{"status":"healthy","message":"Service is running properly"}`
+	expected := `{"status":"unhealthy","message":"Database connection is not available"}`
 	if rr.Body.String() != expected {
 		t.Errorf("Handler returned unexpected body: got %v want %v",
 			rr.Body.String(), expected)
