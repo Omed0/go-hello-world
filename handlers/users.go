@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
@@ -11,9 +10,6 @@ import (
 	"github.com/omed0/go-hello-world/internal/database"
 	"github.com/omed0/go-hello-world/models"
 )
-
-// Compile regex once at package level for better performance
-var usernameRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_]{1,23}[a-zA-Z0-9]$`)
 
 // HandlerLogin handles user login with username and password
 func (api *ApiConfig) HandlerLogin(w http.ResponseWriter, r *http.Request) {

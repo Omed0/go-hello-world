@@ -49,7 +49,7 @@ func main() {
 	// CORS configuration
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "PATCH"},
 		AllowedHeaders:   []string{"*"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: false,
@@ -77,7 +77,7 @@ func main() {
 		r.Post("/organizations", apiCfg.HandlerCreateOrganization)
 		r.Get("/organizations/{orgId}", apiCfg.HandlerGetOrganization)
 		r.With(middleware.RequireRole(apiCfg, "admin", "owner")).Put("/organizations/{orgId}", apiCfg.HandlerUpdateOrganization)
-		r.With(middleware.RequireRole(apiCfg, "owner")).Delete("/organizations/{orgId}", apiCfg.HandlerDeleteOrganization)
+		r.With(middleware.RequireRole(apiCfg, "admin", "owner")).Delete("/organizations/{orgId}", apiCfg.HandlerDeleteOrganization)
 		r.Get("/organizations/{orgId}/users", apiCfg.HandlerGetOrganizationUsers)
 
 		// Task endpoints

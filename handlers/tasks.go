@@ -2,10 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -41,11 +39,6 @@ const (
 	errUserNotFound      = "User not found in context"
 )
 
-// Context keys
-type contextKey string
-
-const userIDKey contextKey = "userID"
-
 // Compile regex patterns once at package level
 var (
 	regexTitlePattern = regexp.MustCompile(`^[a-zA-Z0-9\s]+$`)
@@ -73,10 +66,6 @@ type ToggleCompletionRequest struct {
 // ValidationError represents a validation error
 type ValidationError struct {
 	Message string
-}
-
-func (e *ValidationError) Error() string {
-	return e.Message
 }
 
 // validateTaskInput validates and sanitizes task input
@@ -116,28 +105,10 @@ func parseTaskID(taskIDStr string) (uuid.UUID, error) {
 	return taskID, nil
 }
 
-// parseLimit parses and validates limit parameter
-func parseLimit(limitStr string) int {
-	if limitStr == "" {
-		return defaultLimit
-	}
-
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit <= 0 {
-		return defaultLimit
-	}
-
-	if limit > maxLimit {
-		return maxLimit
-	}
-
-	return limit
-}
-
 // checkTaskOwnership verifies task ownership without additional DB query
 func checkTaskOwnership(task database.Task, userID uuid.UUID) error {
 	if task.UserID != userID {
-		return errors.New(errAccessDenied)
+		return &ValidationError{Message: errAccessDenied}
 	}
 	return nil
 }

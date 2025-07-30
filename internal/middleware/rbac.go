@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"slices"
 
 	"github.com/omed0/go-hello-world/handlers"
 	"github.com/omed0/go-hello-world/internal/auth"
@@ -27,8 +28,8 @@ const (
 var RolePermissions = map[string][]string{
 	RoleUser:  {PermissionRead, PermissionWrite},
 	RoleMod:   {PermissionRead, PermissionWrite, PermissionDelete},
+	RoleOwner: {PermissionRead, PermissionWrite, PermissionDelete},
 	RoleAdmin: {PermissionRead, PermissionWrite, PermissionDelete, PermissionAdmin},
-	RoleOwner: {PermissionRead, PermissionWrite, PermissionDelete, PermissionAdmin},
 }
 
 // RequireRole creates middleware that requires specific roles
@@ -51,11 +52,9 @@ func RequireRole(apiCfg *handlers.ApiConfig, allowedRoles ...string) func(http.H
 
 			// Check if user's role is in the allowed roles
 			userRole := user.Role
-			for _, allowedRole := range allowedRoles {
-				if userRole == allowedRole {
-					next.ServeHTTP(w, r)
-					return
-				}
+			if slices.Contains(allowedRoles, userRole) {
+				next.ServeHTTP(w, r)
+				return
 			}
 
 			// Check role hierarchy - owner > admin > moderator > user

@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -55,4 +56,26 @@ func validateUsername(username string) (bool, string) {
 	}
 
 	return true, ""
+}
+
+// parseLimit parses and validates limit parameter
+func parseLimit(limitStr string) int {
+	if limitStr == "" {
+		return defaultLimit
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		return defaultLimit
+	}
+
+	if limit > maxLimit {
+		return maxLimit
+	}
+
+	return limit
+}
+
+func (e *ValidationError) Error() string {
+	return e.Message
 }
